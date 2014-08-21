@@ -932,6 +932,21 @@ class UserManager
     }
 
     /**
+     * Checks whether a username has dash '-'
+     * @param string $username
+     * @return bool
+     */
+    public static function is_username_has_dash($username)
+    {
+        $flag = false;
+        $pos = strpos($username, '-');
+        if ($pos !== false) {
+            $flag = true;
+        }
+        return $flag;
+    }
+
+    /**
     * Get the users by ID
     * @param array $ids student ids
     * @param string $active
