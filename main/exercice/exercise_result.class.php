@@ -83,9 +83,9 @@ class ExerciseResult
 	 * @param	string		The document path (for HotPotatoes retrieval)
 	 * @param	integer		User ID. Optional. If no user ID is provided, we take all the results. Defauts to null
 	 */
-	function _getExercisesReporting($document_path, $user_id = null, $filter=0, $exercise_id = 0, $hotpotato_name = null) {
+	function _getExercisesReporting($document_path, $user_id = null, $filter=0, $exercise_id = 0, $hotpotato_name = null)
+    {
 		$return = array();
-
     	$TBL_EXERCISES          = Database::get_course_table(TABLE_QUIZ_TEST);
 		$TBL_USER          	    = Database::get_main_table(TABLE_MAIN_USER);
 		$TBL_TRACK_EXERCISES    	= Database::get_statistic_table(TABLE_STATISTIC_TRACK_E_EXERCICES);
@@ -124,7 +124,7 @@ class ExerciseResult
                 LEFT JOIN $TBL_TABLE_LP_MAIN AS tlm ON tlm.id = te.orig_lp_id AND tlm.c_id = ce.c_id
                 WHERE   ce.c_id = $course_id AND
                         te.status != 'incomplete' AND
-                        te.exe_cours_id='" . Database :: escape_string($cid) . "'  $user_id_and  $session_id_and AND
+                        te.exe_cours_id='" . Database :: escape_string($cid) . "' $session_id_and AND
                         ce.active <>-1";
             $hpsql="SELECT ".(api_is_western_name_order() ? "firstname as userpart1, lastname userpart2" : "lastname as userpart1, firstname as userpart2").",
                     email,
@@ -174,7 +174,6 @@ class ExerciseResult
 		}
 
 		$results = array();
-
 		$resx = Database::query($sql);
 		while ($rowx = Database::fetch_array($resx,'ASSOC')) {
             $results[] = $rowx;
@@ -203,7 +202,6 @@ class ExerciseResult
 		if (is_array($results) && empty($hotpotato_name)) {
 			for ($i = 0; $i < sizeof($results); $i++) {
 				$revised = false;
-
 				//revised or not
 				$sql_exe = "SELECT exe_id FROM $TBL_TRACK_ATTEMPT_RECORDING
 							WHERE author != '' AND exe_id = ".Database :: escape_string($results[$i]['exid'])." LIMIT 1";
@@ -216,7 +214,6 @@ class ExerciseResult
 				if ($filter_by_revised && !$revised) continue;
 
 				$return[$i] = array();
-
 				if (empty($user_id)) {
                     if (api_is_western_name_order()) {
                         $return[$i]['first_name']   = $results[$i]['userpart1'];
@@ -237,7 +234,6 @@ class ExerciseResult
                 $return[$i]['status']  = $revised ? get_lang('Validated') : get_lang('NotValidated');
                 $return[$i]['lp_id'] = $results[$i]['orig_lp_id'];
                 $return[$i]['lp_name'] = $results[$i]['lp_name'];
-                
 			}
 		}
 
@@ -272,6 +268,7 @@ class ExerciseResult
 		$this->results = $return;
 		return true;
 	}
+
 	/**
 	 * Exports the complete report as a CSV file
 	 * @param	string		Document path inside the document tool
