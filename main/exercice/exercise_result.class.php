@@ -218,8 +218,13 @@ class ExerciseResult
 				$return[$i] = array();
 
 				if (empty($user_id)) {
-					$return[$i]['first_name']   = $results[$i]['userpart1'];
-					$return[$i]['last_name']    = $results[$i]['userpart2'];
+                    if (api_is_western_name_order()) {
+                        $return[$i]['first_name']   = $results[$i]['userpart1'];
+                        $return[$i]['last_name']    = $results[$i]['userpart2'];
+                    } else {
+                        $return[$i]['first_name']   = $results[$i]['userpart2'];
+                        $return[$i]['last_name']    = $results[$i]['userpart1'];
+                    }
 					$return[$i]['user_id']      = $results[$i]['excruid'];
 					$return[$i]['email']        = $results[$i]['exemail'];
 				}
@@ -246,8 +251,14 @@ class ExerciseResult
 				}
 				if(empty($user_id)) {
 				    $return[$i]['email'] = $hpresults[$i]['email'];
-					$return[$i]['first_name'] = $hpresults[$i]['userpart1'];
-					$return[$i]['last_name'] = $hpresults[$i]['userpart2'];
+                    if (api_is_western_name_order()) {
+                        $return[$i]['first_name']   = $hpresults[$i]['userpart1'];
+                        $return[$i]['last_name']    = $hpresults[$i]['userpart2'];
+                    } else {
+                        $return[$i]['first_name']   = $hpresults[$i]['userpart2'];
+                        $return[$i]['last_name']    = $hpresults[$i]['userpart1'];
+                    }
+
 				}
 				$return[$i]['title'] = $title;
 				$return[$i]['start_date']  = api_get_local_time($results[$i]['exstart']);
