@@ -18,13 +18,31 @@ if (api_get_setting('allow_social_tool') !='true') {
 }
 
 $user_id = api_get_user_id();
+$friendId = isset($_GET['u']) ? Security::remove_XSS($_GET['u']) : api_get_user_id();
 
 $show_full_profile = true;
 //social tab
 $this_section = SECTION_SOCIAL;
 
-//I'm your friend? I can see your profile?
-if (isset($_GET['u'])) {
+// MESSAGES
+if (!empty($_POST['social_wall_new_msg'])) {
+    $res = SocialManager::sendWallMessage(api_get_user_id(), $friendId, $_POST['social_wall_new_msg'], MESSAGE_STATUS_WALL);
+    $url = api_get_path(WEB_CODE_PATH) . 'social/profile.php';
+    header('Location: ' . $url);
+    exit;
+
+} else if (!empty($_POST['social_wall_new_msg_main'])) {
+    SocialManager::sendWallMessage(api_get_user_id(), $friendId, $_POST['social_wall_new_msg_main'], MESSAGE_STATUS_WALL_MAIN);
+    header('Location: ' . api_get_path(WEB_CODE_PATH) . 'social/profile.php');
+    exit;
+
+} else if (isset($_GET['messageId'])) {
+    $messageId = Security::remove_XSS($_GET['messageId']);
+    $status = SocialManager::deleteMessage($messageId);
+    header('Location: ' . api_get_path(WEB_CODE_PATH) . 'social/profile.php');
+    exit;
+
+} else if (isset($_GET['u'])) { //I'm your friend? I can see your profile?
     $user_id     = (int) Database::escape_string($_GET['u']);
     if (api_is_anonymous($user_id, true)) {
         api_not_allowed(true);
@@ -65,6 +83,7 @@ if (isset($_GET['u'])) {
 } else {
     $user_info    = UserManager::get_user_info_by_id($user_id);
 }
+
 $libpath = api_get_path(LIBRARY_PATH);
 require_once api_get_path(SYS_CODE_PATH).'calendar/myagenda.inc.php';
 require_once api_get_path(SYS_CODE_PATH).'announcements/announcements.inc.php';
@@ -282,7 +301,7 @@ $_SESSION['social_user_id'] = intval($user_id);
  */
 
 //Setting some course info
-$my_user_id=isset($_GET['u']) ? Security::remove_XSS($_GET['u']) : api_get_user_id();
+$my_user_id = isset($_GET['u']) ? Security::remove_XSS($_GET['u']) : api_get_user_id();
 $personal_course_list = UserManager::get_personal_session_course_list($my_user_id);
 
 $course_list_code = array();
@@ -310,7 +329,7 @@ $social_left_content.= '<div class="well sidebar-nav">' .$friend_html . '</div>'
 
 $personal_info = null;
 if (!empty($user_info['firstname']) || !empty($user_info['lastname'])) {
-    $personal_info .= '<div><h3>'.api_get_person_name($user_info['firstname'], $user_info['lastname']).'</h3></div>';
+    $personal_info .= '<div DATA="DATA"><h3>'.api_get_person_name($user_info['firstname'], $user_info['lastname']).'</h3></div>';
 } else {
     //--- Basic Information
     $personal_info .=  '<div><h3>'.get_lang('Profile').'</h3></div>';
@@ -343,11 +362,16 @@ if ($show_full_profile) {
     $personal_info .=  '</dl>';
 }
 
-$social_right_content =  SocialManager::social_wrapper_div($personal_info, 4);
+$wallSocialAddPost .= _wallSocialAddPost();
+$social_right_content .= SocialManager::social_wrapper_div($wallSocialAddPost, 5);
+
+$social_right_content .=  SocialManager::social_wrapper_div($personal_info, 4);
+
+$wallSocial .= _wallSocialPost(api_get_user_id(), $my_user_id);
+$social_right_content .= SocialManager::social_wrapper_div($wallSocial, 5);
+
 
 if ($show_full_profile) {
-
-    $social_right_content .=  SocialManager::social_wrapper_div('removed friends', 5);
 
     // Extra information
     $t_uf    = Database :: get_main_table(TABLE_MAIN_USER_FIELD);
@@ -699,7 +723,7 @@ function _listMyFriends($user_id, $link_shared, $show_full_profile)
     $number_friends = 0;
     $number_friends = count($friends);
 
-    $friendHtml = '<div><h3>'.get_lang('SocialFriend').'<span>(' . $number_friends . ')</span></h3></div>';
+    $friendHtml = '<div class="nav-list"><h3>'.get_lang('SocialFriend').'<span>(' . $number_friends . ')</span></h3></div>';
 
     if ($number_friends != 0) {
         if ($number_friends > $number_of_images) {
@@ -713,7 +737,7 @@ function _listMyFriends($user_id, $link_shared, $show_full_profile)
             }
         }
 
-        $friendHtml.= '<ul class="nav">';
+        $friendHtml.= '<ul class="nav nav-list">';
         $j = 1;
         for ($k=0; $k < $number_friends; $k++) {
             if ($j > $number_of_images) break;
@@ -747,3 +771,31 @@ function _listMyFriends($user_id, $link_shared, $show_full_profile)
     return $friendHtml;
 }
 
+
+function _wallSocialAddPost()
+{
+    $html = '';
+    $html .= '<h3>' . get_lang('SocialWall') . '</h3>';
+    $html .=
+        '<form name="social_wall_main" method="POST">
+            <label for="social_wall_new_msg_main" class="hide">' . get_lang('SocialWallWhatAreYouThinkingAbout') . '</label>
+        <textarea name="social_wall_new_msg_main" rows="2" cols="80" style="width: 98%" placeholder="'.get_lang('SocialWallWhatAreYouThinkingAbout').'"></textarea>
+        <br />
+        <input type="submit" name="social_wall_new_msg_main_submit" value="'.get_lang('Post').'" class="float right btn btn-primary" />
+    </form>';
+
+    $html .= '_wallSocialAddPost';
+
+    return $html;
+
+}
+
+function _wallSocialPost($userId, $friendId)
+{
+    $html = '';
+    $html .= SocialManager::getWallMessagesHTML($userId, $friendId, null, 10);
+
+    $html .= '_wallSocialPost';
+
+    return $html;
+}

@@ -1034,10 +1034,11 @@ class SocialManager extends UserManager
      * @param int user id of author
      * @param int user id where we send the message
      * @param string content of the message
+     * @param string $messageStatus status type of message
      * @return boolean
      * @author Yannick Warnier
      */
-    public static function sendWallMessage($userId, $friendId, $messageContent)
+    public static function sendWallMessage($userId, $friendId, $messageContent, $messageStatus)
     {
         $tblMessage = Database::get_main_table(TABLE_MAIN_MESSAGE);
         $userId = intval($userId);
@@ -1052,7 +1053,7 @@ class SocialManager extends UserManager
         $sql = 'INSERT INTO '.$tblMessage.'(
             user_sender_id,user_receiver_id,msg_status,send_date,title,content
             ) VALUES(
-            '.$userId.','.$friendId.','.MESSAGE_STATUS_WALL.',"'.$now.'","","'.$cleanMessageContent.'") ';
+            '.$userId.','.$friendId.','.$messageStatus.',"'.$now.'","","'.$cleanMessageContent.'") ';
         Database::query($sql);
 
         $senderInfo = api_get_user_info($userId);
@@ -1066,10 +1067,11 @@ class SocialManager extends UserManager
      * @param int user id of wall shown
      * @param string Date from which we want to show the messages, in UTC time
      * @param int   Limit for the number of parent messages we want to show
+     * @param int Post main
      * @return boolean
      * @author Yannick Warnier
      */
-    public static function getWallMessages($userId, $start = null, $limit = 10)
+    public static function getWallMessages($userId, $parentId, $start = null, $limit = 10)
     {
         if (empty($start)) {
             $start = '0000-00-00';
@@ -1087,7 +1089,7 @@ class SocialManager extends UserManager
             WHERE user_receiver_id = $userId
                 AND send_date > '$start'
                 AND msg_status = " . MESSAGE_STATUS_WALL .
-                //" AND parent_id = 0 " .
+                " AND parent_id = '$parentId' " .
                 " ORDER BY send_date DESC
                 LIMIT $limit";
         $res = Database::query($sql);
@@ -1105,7 +1107,7 @@ class SocialManager extends UserManager
      * @param   int Limit to the number of messages we want
      * @return  string  HTML formatted string to show messages
      */
-    public static function getWallMessagesHTML($userId, $start = null, $limit = 10)
+    public static function getWallMessagesHTML($userId, $friendId, $start = null, $limit = 10)
     {
         if (empty($start)) {
             $start = '0000-00-00';
@@ -1115,16 +1117,74 @@ class SocialManager extends UserManager
         $users = array();
         foreach ($messages as $message) {
             $date = api_get_local_time($message['send_date']);
-            if (isset($users[$message['user_send_id']])) {
-                $user = $users[$message['user_send_id']]['complete_name'];
+            $userIdLoop = $message['user_sender_id'];
+            if (isset($users[$userIdLoop])) {
+                $user = $users[$userIdLoop]['complete_name'];
             } else {
-                $users[$message['user_send_id']] = api_get_user_info($message['user_send_id']);
-                $user = $users[$message['user_send_id']]['complete_name'];
+                $users[$userIdLoop] = api_get_user_info($userIdLoop);
+                $user = $users[$userIdLoop]['complete_name'];
             }
-            $formattedList .= '<span class="help-inline">' . sprintf(get_lang('SentOnXByY'), $date, '<a href="'.api_get_path(WEB_CODE_PATH).'social/profile.php?u='.$message['user_send_id'].'">'.$user.'</a>') . '</span>';
+
+            $nameComplete = api_is_western_name_order()
+                ? $users[$userIdLoop]['firstname'] .' ' . $users[$userIdLoop]['lastname']
+                : $users[$userIdLoop]['lastname'] . ' ' . $users[$userIdLoop]['firstname'];
+/*
+            //echo "<pre>"; print_r($users); exit;
+            $formattedList .= '<span class="help-inline">' . sprintf(get_lang('SentOnXByY'), $date, '<a href="'.api_get_path(WEB_CODE_PATH).'social/profile.php?u='.$message['user_send_id'].'">aaa'.$user.'aaaa</a>sss') . '</span>';
             $formattedList .= '<div> ' . Security::remove_XSS($message['content']) . ' </div>';
+*/
+
+            $media = '';
+            $media .= '<div class="media">';
+            $media .= '<a href="#" class="pull-left">'
+                . '<img class="" src="'. $users[$userIdLoop]['avatar'] .'" '
+                . 'width="32" height="32" alt="'.$users[$userIdLoop]['complete_name'].'" style="width: 32px; height: 32px;"> '
+                . '</a>';
+
+            $media .= '<div class="media-body">'
+                . '<h4 class="media-heading">'
+                . '<a href="#">' . $nameComplete . '</a> '
+                . '<small><span class="time" title="' . $date . '">' . $date . '</span></small>'
+                . '</h4>'
+                . '</div>';
+
+            $media .= '<span class="content">'.Security::remove_XSS($message['content']).'</span>';
+
+            if ($userId == $friendId) {
+                $media .= '<div><a href="'.api_get_path(WEB_PATH).'main/social/profile.php?messageId=' . $message['id'].'">'.get_lang('SocialMessageDelete').'</a>';
+                /*$media .= ' - <a href="#" class="like likeAnchor">Like</a>
+                        <a href="#" class="unlike likeAnchor" style="display:none">Unlike</a>(<span class="">0</span>)';*/
+                $media .= '</div>';
+            }
+
+            $media .= '</div>'; // end media
+
+            $formattedList .= $media;
         }
+
+        $formattedList .= '<hr><form name="social_wall_message" method="POST">
+            <label for="social_wall_new_msg" class="hide">' . get_lang('SocialWriteNewComment') . '</label>
+            <textarea placeholder="' . get_lang('SocialWriteNewComment') . '" name="social_wall_new_msg" rows="1" cols="80" style="width: 98%"></textarea>
+            <br />
+            <input type="submit" name="social_wall_new_msg_submit" value="'.get_lang('Post').'" class="" />
+            </form>';
+
         $formattedList .= '</div>';
         return $formattedList;
     }
+
+    /**
+    * Delete messages delete logic
+    * @param int $id indice message to delete.
+    * @return status query
+    */
+    public static function deleteMessage($id)
+    {
+        $id = intval($id);
+        $tblMessage = Database::get_main_table(TABLE_MESSAGE);
+        $statusMessage = MESSAGE_STATUS_WALL_DELETE;
+        $sql = "UPDATE $tblMessage SET msg_status = '$statusMessage' WHERE id = '{$id}' "; ECHO $sql;
+        return Database::query($sql);
+    }
+
 }

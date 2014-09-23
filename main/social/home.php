@@ -29,13 +29,6 @@ if (api_get_setting('allow_social_tool') != 'true') {
     api_not_allowed();
 }
 
-if (!empty($_POST['social_wall_new_msg'])) {
-    $res = SocialManager::sendWallMessage($user_id, $user_id, $_POST['social_wall_new_msg']);
-    $url = api_get_path(WEB_CODE_PATH) . 'social/home.php';
-    header('Location: ' . $url);
-    exit;
-}
-
 //fast upload image
 if (api_get_setting('profile', 'picture') == 'true') {
     $form = new FormValidator('profile', 'post', 'home.php', null, array());
@@ -118,7 +111,7 @@ $list = array(
     array('title' => get_lang('Email'), 'content' => $user_info['email']),
 );
 // information current user
-$social_right_content .= '<div>' . Display::description($list) . '</div>';
+$social_right_content .= 'XXXXX<div>' . Display::description($list) . '</div>';
 $social_right_content .= '
     <div class="form-actions">
     <a class="btn" href="' . api_get_path(WEB_PATH) . 'main/auth/profile.php">
