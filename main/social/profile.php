@@ -24,16 +24,18 @@ $show_full_profile = true;
 //social tab
 $this_section = SECTION_SOCIAL;
 
-// MESSAGES
-if (!empty($_POST['social_wall_new_msg'])) {
-    $res = SocialManager::sendWallMessage(api_get_user_id(), $friendId, $_POST['social_wall_new_msg'], MESSAGE_STATUS_WALL);
-    $url = api_get_path(WEB_CODE_PATH) . 'social/profile.php';
-    header('Location: ' . $url);
+
+if (!empty($_POST['social_wall_new_msg_main'])) {
+    $messageId = 0;
+    SocialManager::sendWallMessage(api_get_user_id(), $friendId, $_POST['social_wall_new_msg_main'], $messageId, MESSAGE_STATUS_WALL_POST);
+    header('Location: ' . api_get_path(WEB_CODE_PATH) . 'social/profile.php');
     exit;
 
-} else if (!empty($_POST['social_wall_new_msg_main'])) {
-    SocialManager::sendWallMessage(api_get_user_id(), $friendId, $_POST['social_wall_new_msg_main'], MESSAGE_STATUS_WALL_MAIN);
-    header('Location: ' . api_get_path(WEB_CODE_PATH) . 'social/profile.php');
+} else if (!empty($_POST['social_wall_new_msg'])  && !empty($_POST['messageId'])) {
+    $messageId = intval($_POST['messageId']);
+    $res = SocialManager::sendWallMessage(api_get_user_id(), $friendId, $_POST['social_wall_new_msg'], $messageId , MESSAGE_STATUS_WALL);
+    $url = api_get_path(WEB_CODE_PATH) . 'social/profile.php';
+    header('Location: ' . $url);
     exit;
 
 } else if (isset($_GET['messageId'])) {
@@ -367,8 +369,8 @@ $social_right_content .= SocialManager::social_wrapper_div($wallSocialAddPost, 5
 
 $social_right_content .=  SocialManager::social_wrapper_div($personal_info, 4);
 
-$wallSocial .= _wallSocialPost(api_get_user_id(), $my_user_id);
-$social_right_content .= SocialManager::social_wrapper_div($wallSocial, 5);
+$social_right_content .= _wallSocialPost(api_get_user_id(), $friendId);
+//$social_right_content .= SocialManager::social_wrapper_div($wallSocial, 5);
 
 
 if ($show_full_profile) {
@@ -784,18 +786,20 @@ function _wallSocialAddPost()
         <input type="submit" name="social_wall_new_msg_main_submit" value="'.get_lang('Post').'" class="float right btn btn-primary" />
     </form>';
 
-    $html .= '_wallSocialAddPost';
-
     return $html;
-
 }
 
 function _wallSocialPost($userId, $friendId)
 {
+    $array = SocialManager::getWallMessagesPostHTML($userId);
     $html = '';
-    $html .= SocialManager::getWallMessagesHTML($userId, $friendId, null, 10);
 
-    $html .= '_wallSocialPost';
+    for($i = 0; $i < count($array); $i++) {
+        $post = $array[$i]['html'];
+        $comment = SocialManager::getWallMessagesHTML($userId, $friendId, $array[$i]['id']);
+
+        $html .= SocialManager::social_wrapper_div($post.$comment, 5);
+    }
 
     return $html;
 }

@@ -1031,18 +1031,20 @@ class SocialManager extends UserManager
     }
     /**
      * Sends a message to someone's wall
-     * @param int user id of author
-     * @param int user id where we send the message
-     * @param string content of the message
+     * @param int $userId id of author
+     * @param int $friendId id where we send the message
+     * @param string $messageContent of the message
+     * @param int $messageId id parent
      * @param string $messageStatus status type of message
      * @return boolean
      * @author Yannick Warnier
      */
-    public static function sendWallMessage($userId, $friendId, $messageContent, $messageStatus)
+    public static function sendWallMessage($userId, $friendId, $messageContent, $messageId = 0 ,$messageStatus)
     {
         $tblMessage = Database::get_main_table(TABLE_MAIN_MESSAGE);
         $userId = intval($userId);
         $friendId = intval($friendId);
+        $messageId = intval($messageId);
 
         //Just in case we replace the and \n and \n\r while saving in the DB
         $messageContent = str_replace(array("\n", "\n\r"), '<br />', $messageContent);
@@ -1051,9 +1053,9 @@ class SocialManager extends UserManager
         $now = api_get_utc_datetime();
 
         $sql = 'INSERT INTO '.$tblMessage.'(
-            user_sender_id,user_receiver_id,msg_status,send_date,title,content
+            user_sender_id,user_receiver_id,msg_status,send_date,title,content,parent_id
             ) VALUES(
-            '.$userId.','.$friendId.','.$messageStatus.',"'.$now.'","","'.$cleanMessageContent.'") ';
+            '.$userId.','.$friendId.','.$messageStatus.',"'.$now.'","","'.$cleanMessageContent.'", "'.$messageId.'" ) ';
         Database::query($sql);
 
         $senderInfo = api_get_user_info($userId);
@@ -1071,7 +1073,7 @@ class SocialManager extends UserManager
      * @return boolean
      * @author Yannick Warnier
      */
-    public static function getWallMessages($userId, $parentId, $start = null, $limit = 10)
+    public static function getWallMessages($userId, $messageStatus, $parentId = '', $start = null, $limit = 10)
     {
         if (empty($start)) {
             $start = '0000-00-00';
@@ -1087,19 +1089,21 @@ class SocialManager extends UserManager
         $messages = array();
         $sql = "SELECT id, user_sender_id, send_date, content, parent_id FROM $tblMessage
             WHERE user_receiver_id = $userId
-                AND send_date > '$start'
-                AND msg_status = " . MESSAGE_STATUS_WALL .
-                " AND parent_id = '$parentId' " .
-                " ORDER BY send_date DESC
-                LIMIT $limit";
+                AND send_date > '$start' ";
+        $sql .= (empty($messageStatus) || is_null($messageStatus)) ? '' : " AND msg_status = '$messageStatus' ";  // MESSAGE_STATUS_WALL
+        $sql .= (empty($parentId) || is_null($parentId)) ? '' : " AND parent_id = '$parentId' ";
+        $sql .= " ORDER BY send_date DESC
+                LIMIT $limit ";
         $res = Database::query($sql);
         if (Database::num_rows($res) > 0) {
             while ($row = Database::fetch_array($res)) {
                 $messages[] = $row;
             }
         }
+        
         return $messages;
     }
+
     /**
      * Gets all messages from someone's wall (within specific limits), formatted
      * @param   int User ID of the person's wall
@@ -1107,14 +1111,16 @@ class SocialManager extends UserManager
      * @param   int Limit to the number of messages we want
      * @return  string  HTML formatted string to show messages
      */
-    public static function getWallMessagesHTML($userId, $friendId, $start = null, $limit = 10)
+    public static function getWallMessagesHTML($userId, $friendId, $idMessage, $start = null, $limit = 10)
     {
         if (empty($start)) {
             $start = '0000-00-00';
         }
-        $messages = self::getWallMessages($userId, $start, $limit);
+
+        $messages = self::getWallMessages($userId, MESSAGE_STATUS_WALL, $idMessage, $start, $limit);
         $formattedList = '<div>';
         $users = array();
+
         foreach ($messages as $message) {
             $date = api_get_local_time($message['send_date']);
             $userIdLoop = $message['user_sender_id'];
@@ -1128,22 +1134,19 @@ class SocialManager extends UserManager
             $nameComplete = api_is_western_name_order()
                 ? $users[$userIdLoop]['firstname'] .' ' . $users[$userIdLoop]['lastname']
                 : $users[$userIdLoop]['lastname'] . ' ' . $users[$userIdLoop]['firstname'];
-/*
-            //echo "<pre>"; print_r($users); exit;
-            $formattedList .= '<span class="help-inline">' . sprintf(get_lang('SentOnXByY'), $date, '<a href="'.api_get_path(WEB_CODE_PATH).'social/profile.php?u='.$message['user_send_id'].'">aaa'.$user.'aaaa</a>sss') . '</span>';
-            $formattedList .= '<div> ' . Security::remove_XSS($message['content']) . ' </div>';
-*/
+
+            $url = api_get_path(WEB_PATH).'main/social/profile.php?u='.$userIdLoop;
 
             $media = '';
             $media .= '<div class="media">';
-            $media .= '<a href="#" class="pull-left">'
+            $media .= '<a href="'.$url.'" class="pull-left">'
                 . '<img class="" src="'. $users[$userIdLoop]['avatar'] .'" '
                 . 'width="32" height="32" alt="'.$users[$userIdLoop]['complete_name'].'" style="width: 32px; height: 32px;"> '
                 . '</a>';
 
             $media .= '<div class="media-body">'
                 . '<h4 class="media-heading">'
-                . '<a href="#">' . $nameComplete . '</a> '
+                . '<a href="'.$url.'">' . $nameComplete . '</a> '
                 . '<small><span class="time" title="' . $date . '">' . $date . '</span></small>'
                 . '</h4>'
                 . '</div>';
@@ -1164,13 +1167,62 @@ class SocialManager extends UserManager
 
         $formattedList .= '<hr><form name="social_wall_message" method="POST">
             <label for="social_wall_new_msg" class="hide">' . get_lang('SocialWriteNewComment') . '</label>
+            <input type="hidden" name = "messageId" value="'.$idMessage.'" />
             <textarea placeholder="' . get_lang('SocialWriteNewComment') . '" name="social_wall_new_msg" rows="1" cols="80" style="width: 98%"></textarea>
             <br />
             <input type="submit" name="social_wall_new_msg_submit" value="'.get_lang('Post').'" class="" />
             </form>';
-
         $formattedList .= '</div>';
+
         return $formattedList;
+    }
+
+    /**
+     * @param $userId indentification
+     * @param null $start
+     * @param int $limit
+     * @return array $data return array associative
+     */
+    public static function getWallMessagesPostHTML($userId, $start = null, $limit = 10)
+    {
+        if (empty($start)) {
+            $start = '0000-00-00';
+        }
+        $messages = self::getWallMessages($userId, MESSAGE_STATUS_WALL_POST , null, $start, $limit);
+        $users = api_get_user_info($userId);
+        $nameComplete = api_is_western_name_order()
+            ? $users['firstname'] .' ' . $users['lastname']
+            : $users['lastname'] . ' ' . $users['firstname'];
+        $url = api_get_path(WEB_PATH).'main/social/profile.php';
+
+        $data = array();
+
+        foreach ($messages as $key => $message) { //var_dump($message); exit;
+            $date = api_get_local_time($message['send_date']);
+
+            $html = '';
+            $html .= '<div class="mediaPost">';
+            $html .= '<a href="'.$url.'" class="pull-left">'
+                . '<img class="" src="'. $users['avatar'] .'" '
+                . 'width="40" height="40" alt="'.$users['complete_name'].'" style="width: 40px; height: 40px;"> '
+                . '</a>';
+
+            $html .= '<div class="media-body">'
+                . '<h4 class="media-heading">'
+                . '<a href="'.$url.'">' . $nameComplete . '</a> '
+                . '<small><span class="time" title="' . $date . '">' . $date . '</span></small>'
+                . '</h4>'
+                . '</div>';
+
+            $html .= '<span class="content">'.Security::remove_XSS($message['content']).'</span>';
+
+            $html .= '</div>'; // end mediaPost
+
+            $data[$key]['id'] = $message['id'];
+            $data[$key]['html'] = $html;
+        }
+
+        return $data;
     }
 
     /**
