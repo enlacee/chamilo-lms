@@ -1064,12 +1064,14 @@ class SocialManager extends UserManager
 
         return true;
     }
+
     /**
      * Gets all messages from someone's wall (within specific limits)
-     * @param int user id of wall shown
+     * @param int $userId id of wall shown
+     * @param string $messageStatus status wall message
+     * @param int $parentId id message (Post main)
      * @param string Date from which we want to show the messages, in UTC time
      * @param int   Limit for the number of parent messages we want to show
-     * @param int Post main
      * @return boolean
      * @author Yannick Warnier
      */
@@ -1087,10 +1089,10 @@ class SocialManager extends UserManager
         //}
         $limit = intval($limit);
         $messages = array();
-        $sql = "SELECT id, user_sender_id, send_date, content, parent_id FROM $tblMessage
+        $sql = "SELECT id, user_sender_id,user_receiver_id, send_date, content, parent_id FROM $tblMessage
             WHERE user_receiver_id = $userId
                 AND send_date > '$start' ";
-        $sql .= (empty($messageStatus) || is_null($messageStatus)) ? '' : " AND msg_status = '$messageStatus' ";  // MESSAGE_STATUS_WALL
+        $sql .= (empty($messageStatus) || is_null($messageStatus)) ? '' : " AND msg_status = '$messageStatus' ";
         $sql .= (empty($parentId) || is_null($parentId)) ? '' : " AND parent_id = '$parentId' ";
         $sql .= " ORDER BY send_date DESC
                 LIMIT $limit ";
@@ -1106,10 +1108,12 @@ class SocialManager extends UserManager
 
     /**
      * Gets all messages from someone's wall (within specific limits), formatted
-     * @param   int User ID of the person's wall
-     * @param   string  Start date (from when we want the messages until today)
-     * @param   int Limit to the number of messages we want
-     * @return  string  HTML formatted string to show messages
+     * @param int $userId USER ID of the person's wall
+     * @param int $friendId id person
+     * @param int $idMessage id message
+     * @param string  Start date (from when we want the messages until today)
+     * @param int Limit to the number of messages we want
+     * @return string  HTML formatted string to show messages
      */
     public static function getWallMessagesHTML($userId, $friendId, $idMessage, $start = null, $limit = 10)
     {
@@ -1117,6 +1121,7 @@ class SocialManager extends UserManager
             $start = '0000-00-00';
         }
 
+        $visibility = (api_get_user_id() == $userId  && $userId == $friendId);
         $messages = self::getWallMessages($userId, MESSAGE_STATUS_WALL, $idMessage, $start, $limit);
         $formattedList = '<div>';
         $users = array();
@@ -1124,17 +1129,13 @@ class SocialManager extends UserManager
         foreach ($messages as $message) {
             $date = api_get_local_time($message['send_date']);
             $userIdLoop = $message['user_sender_id'];
-            if (isset($users[$userIdLoop])) {
-                $user = $users[$userIdLoop]['complete_name'];
-            } else {
+            if (!isset($users[$userIdLoop])) {
                 $users[$userIdLoop] = api_get_user_info($userIdLoop);
-                $user = $users[$userIdLoop]['complete_name'];
             }
 
             $nameComplete = api_is_western_name_order()
                 ? $users[$userIdLoop]['firstname'] .' ' . $users[$userIdLoop]['lastname']
                 : $users[$userIdLoop]['lastname'] . ' ' . $users[$userIdLoop]['firstname'];
-
             $url = api_get_path(WEB_PATH).'main/social/profile.php?u='.$userIdLoop;
 
             $media = '';
@@ -1153,24 +1154,20 @@ class SocialManager extends UserManager
 
             $media .= '<span class="content">'.Security::remove_XSS($message['content']).'</span>';
 
-            if ($userId == $friendId) {
-                $media .= '<div><a href="'.api_get_path(WEB_PATH).'main/social/profile.php?messageId=' . $message['id'].'">'.get_lang('SocialMessageDelete').'</a>';
-                /*$media .= ' - <a href="#" class="like likeAnchor">Like</a>
-                        <a href="#" class="unlike likeAnchor" style="display:none">Unlike</a>(<span class="">0</span>)';*/
-                $media .= '</div>';
+            if ($visibility) {
+                $media .= '<div><a href="'.api_get_path(WEB_PATH).'main/social/profile.php?messageId=' . $message['id'].'">'.get_lang('SocialMessageDelete').'</a></div>';
             }
-
             $media .= '</div>'; // end media
 
             $formattedList .= $media;
         }
 
-        $formattedList .= '<hr><form name="social_wall_message" method="POST">
+        $formattedList .= '<form name="social_wall_message" method="POST">
             <label for="social_wall_new_msg" class="hide">' . get_lang('SocialWriteNewComment') . '</label>
             <input type="hidden" name = "messageId" value="'.$idMessage.'" />
             <textarea placeholder="' . get_lang('SocialWriteNewComment') . '" name="social_wall_new_msg" rows="1" cols="80" style="width: 98%"></textarea>
             <br />
-            <input type="submit" name="social_wall_new_msg_submit" value="'.get_lang('Post').'" class="" />
+            <input type="submit" name="social_wall_new_msg_submit" value="'.get_lang('Post').'" />
             </form>';
         $formattedList .= '</div>';
 
@@ -1178,51 +1175,84 @@ class SocialManager extends UserManager
     }
 
     /**
-     * @param $userId indentification
+     * @param int $userId id
+     * @param int $friendId id
      * @param null $start
      * @param int $limit
      * @return array $data return array associative
      */
-    public static function getWallMessagesPostHTML($userId, $start = null, $limit = 10)
+    public static function getWallMessagesPostHTML($userId, $friendId = 0, $start = null, $limit = 10)
     {
         if (empty($start)) {
             $start = '0000-00-00';
         }
+        $visibility = (api_get_user_id() == $userId  && $userId == $friendId);
         $messages = self::getWallMessages($userId, MESSAGE_STATUS_WALL_POST , null, $start, $limit);
-        $users = api_get_user_info($userId);
-        $nameComplete = api_is_western_name_order()
-            ? $users['firstname'] .' ' . $users['lastname']
-            : $users['lastname'] . ' ' . $users['firstname'];
-        $url = api_get_path(WEB_PATH).'main/social/profile.php';
-
+        $users = array();
         $data = array();
-
-        foreach ($messages as $key => $message) { //var_dump($message); exit;
+        foreach ($messages as $key => $message) {
             $date = api_get_local_time($message['send_date']);
+            $userIdLoop = $message['user_sender_id'];
+            $userFriendIdLoop = $message['user_receiver_id'];
+
+            if (!isset($users[$userIdLoop])) {
+                $users[$userIdLoop] = api_get_user_info($userIdLoop);
+            }
+
+            if (!isset($users[$userFriendIdLoop])) {
+                $users[$userFriendIdLoop] = api_get_user_info($userFriendIdLoop);
+            }
 
             $html = '';
-            $html .= '<div class="mediaPost">';
-            $html .= '<a href="'.$url.'" class="pull-left">'
-                . '<img class="" src="'. $users['avatar'] .'" '
-                . 'width="40" height="40" alt="'.$users['complete_name'].'" style="width: 40px; height: 40px;"> '
-                . '</a>';
-
-            $html .= '<div class="media-body">'
-                . '<h4 class="media-heading">'
-                . '<a href="'.$url.'">' . $nameComplete . '</a> '
-                . '<small><span class="time" title="' . $date . '">' . $date . '</span></small>'
-                . '</h4>'
-                . '</div>';
-
-            $html .= '<span class="content">'.Security::remove_XSS($message['content']).'</span>';
-
-            $html .= '</div>'; // end mediaPost
+            $html .= self::_headerMessagePost($message['user_sender_id'], $message['user_receiver_id'], $users, $message, $visibility);
+            $html .= '<hr>';
 
             $data[$key]['id'] = $message['id'];
             $data[$key]['html'] = $html;
         }
 
         return $data;
+    }
+
+
+    private  static function _headerMessagePost($authorId, $reciverId, $users, $message, $visibility = false)
+    {
+        $date = api_get_local_time($message['send_date']);
+        $avatarAuthor = $users[$authorId]['avatar'];
+        $urlAuthor = api_get_path(WEB_PATH).'main/social/profile.php?u='.$authorId;
+        $nameCompleteAuthor = api_is_western_name_order()
+            ? $users[$authorId]['firstname'] .' ' . $users[$authorId]['lastname']
+            : $users[$authorId]['lastname'] . ' ' . $users[$authorId]['firstname'];
+
+        $avatarReciver = $users[$reciverId]['avatar'];
+        $urlReciber = api_get_path(WEB_PATH).'main/social/profile.php?u='.$reciverId;
+        $nameCompleteReciver = api_is_western_name_order()
+            ? $users[$reciverId]['firstname'] .' ' . $users[$reciverId]['lastname']
+            : $users[$reciverId]['lastname'] . ' ' . $users[$reciverId]['firstname'];
+
+        $htmlReciber = '';
+        if ($authorId != $reciverId) {
+            $htmlReciber = ' > <a href="'.$urlReciber.'">' . $nameCompleteReciver . '</a> ';
+        }
+
+        $htmlDelete = '';
+        if ($visibility) {
+            $htmlDelete .= '<a href="'.api_get_path(WEB_PATH).'main/social/profile.php?messageId=' . $message['id'].'">'.get_lang('SocialMessageDelete').'</a>';
+        }
+
+        $html = '';
+        $html .= '<div class="mediaPost">';
+        $html .= '<a href="'.$urlAuthor.'" class="pull-left">'
+            . '<img class="" src="'. $avatarAuthor .'"  width="40" height="40" alt="'.$nameCompleteAuthor.'" style="width: 40px; height: 40px;"></a>';
+        $html .= '<div class="media-body">';
+        $html .= '<h4 class="media-heading"> <a href="'.$urlAuthor.'">' . $nameCompleteAuthor . '</a> ' . $htmlReciber;
+        $html .= '<small><span class="time" title="' . $date . '">' . $date . '</span></small></h4>';
+        $html .= $htmlDelete;
+        $html .= '</div>';
+        $html .= '<span class="content">'.Security::remove_XSS($message['content']).'</span>';
+        $html .= '</div>'; // end mediaPost
+
+        return $html;
     }
 
     /**
@@ -1235,7 +1265,7 @@ class SocialManager extends UserManager
         $id = intval($id);
         $tblMessage = Database::get_main_table(TABLE_MESSAGE);
         $statusMessage = MESSAGE_STATUS_WALL_DELETE;
-        $sql = "UPDATE $tblMessage SET msg_status = '$statusMessage' WHERE id = '{$id}' "; ECHO $sql;
+        $sql = "UPDATE $tblMessage SET msg_status = '$statusMessage' WHERE id = '{$id}' ";
         return Database::query($sql);
     }
 

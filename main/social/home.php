@@ -86,18 +86,6 @@ $social_left_content = SocialManager::show_social_menu('home');
 
 $social_right_content = '<div class="span5">';
 $social_right_content .= '<div class="well_border">';
-$social_right_content .= '<h3>' . get_lang('SocialWall') . '</h3>';
-$social_right_content .=
-    '<form name="social_wall_msg" method="POST">
-        <label for="social_wall_new_msg">' . get_lang('SocialWallWhatAreYouThinkingAbout') . '</label>
-        <textarea name="social_wall_new_msg" rows="2" cols="80" style="width: 98%"> </textarea>
-        <br />
-        <input type="submit" name="social_wall_new_msg_submit" value="'.get_lang('Post').'" class="float right btn btn-primary" />
-    </form>';
-$social_right_content .= SocialManager::getWallMessagesHTML($user_info['user_id'], null, 10);
-
-$social_right_content .= '</div>';
-$social_right_content .= '<div class="well_border">';
 $social_right_content .= '<h3>' . get_lang('ContactInformation') . '</h3>';
 
 $list = array(
@@ -111,7 +99,7 @@ $list = array(
     array('title' => get_lang('Email'), 'content' => $user_info['email']),
 );
 // information current user
-$social_right_content .= 'XXXXX<div>' . Display::description($list) . '</div>';
+$social_right_content .= '<div>' . Display::description($list) . '</div>';
 $social_right_content .= '
     <div class="form-actions">
     <a class="btn" href="' . api_get_path(WEB_PATH) . 'main/auth/profile.php">

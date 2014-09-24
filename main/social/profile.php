@@ -28,13 +28,16 @@ $this_section = SECTION_SOCIAL;
 if (!empty($_POST['social_wall_new_msg_main'])) {
     $messageId = 0;
     SocialManager::sendWallMessage(api_get_user_id(), $friendId, $_POST['social_wall_new_msg_main'], $messageId, MESSAGE_STATUS_WALL_POST);
-    header('Location: ' . api_get_path(WEB_CODE_PATH) . 'social/profile.php');
+    $url = api_get_path(WEB_CODE_PATH) . 'social/profile.php';
+    $url .= empty($_SERVER['QUERY_STRING']) ? '' : '?' . $_SERVER['QUERY_STRING'];
+    header('Location: ' . $url);
     exit;
 
 } else if (!empty($_POST['social_wall_new_msg'])  && !empty($_POST['messageId'])) {
     $messageId = intval($_POST['messageId']);
     $res = SocialManager::sendWallMessage(api_get_user_id(), $friendId, $_POST['social_wall_new_msg'], $messageId , MESSAGE_STATUS_WALL);
     $url = api_get_path(WEB_CODE_PATH) . 'social/profile.php';
+    $url .= empty($_SERVER['QUERY_STRING']) ? '' : '?' . $_SERVER['QUERY_STRING'];
     header('Location: ' . $url);
     exit;
 
@@ -296,6 +299,7 @@ if (isset($_GET['u'])) {
     $info_user = api_get_user_info(api_get_user_id());
     $param_user = '';
 }
+
 $_SESSION['social_user_id'] = intval($user_id);
 
 /**
@@ -369,7 +373,7 @@ $social_right_content .= SocialManager::social_wrapper_div($wallSocialAddPost, 5
 
 $social_right_content .=  SocialManager::social_wrapper_div($personal_info, 4);
 
-$social_right_content .= _wallSocialPost(api_get_user_id(), $friendId);
+$social_right_content .= _wallSocialPost($my_user_id, $friendId);
 //$social_right_content .= SocialManager::social_wrapper_div($wallSocial, 5);
 
 
@@ -759,7 +763,8 @@ function _listMyFriends($user_id, $link_shared, $show_full_profile)
                 // the height = 92 must be the sqme in the image_friend_network span style in default.css
                 $friends_profile = SocialManager::get_picture_user($friend['friend_user_id'], $friend['image'], 20, USER_IMAGE_SIZE_SMALL);
                 $friendHtml.= '<img src="'.$friends_profile['file'].'" id="imgfriend_'.$friend['friend_user_id'].'" title="'.$name_user.'"/>';
-                $friendHtml.= $statusIcon .'<a href="profile.php?' .'u=' . $friend['friend_user_id'] . '&amp;'.$link_shared.'">' . $name_user .'</a>';
+                $link_shared = (empty($link_shared)) ? '' : '&'.$link_shared;
+                $friendHtml.= $statusIcon .'<a href="profile.php?' .'u=' . $friend['friend_user_id'] . $link_shared . '">' . $name_user .'</a>';
                 $friendHtml.= '</li>';
             }
             $j++;
@@ -791,7 +796,7 @@ function _wallSocialAddPost()
 
 function _wallSocialPost($userId, $friendId)
 {
-    $array = SocialManager::getWallMessagesPostHTML($userId);
+    $array = SocialManager::getWallMessagesPostHTML($userId, $friendId);
     $html = '';
 
     for($i = 0; $i < count($array); $i++) {
