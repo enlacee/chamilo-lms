@@ -1320,11 +1320,54 @@ class SocialManager extends UserManager
         $html .= $htmlDelete;
         $html .= $wallImage;
         $html .= '</div>';
-        $html .= '<span class="content">'.Security::remove_XSS($message['content']).'</span>';
+        $html .= '<span class="content">'.Security::remove_XSS(self::readContentWithOpenGraph($message['content'])).'</span>';
         $html .= '</div>'; // end mediaPost
 
         return $html;
     }
+
+    /**
+     * Get schedule html (with data openGrap)
+     * @param $text content text
+     */
+    public function readContentWithOpenGraph($text)
+    {
+        // search link in first line
+        $regExUrl = "/(http|https)\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(\/\S*)?/";
+        $newText = '';
+        $count = 0;
+        if(preg_match($regExUrl, $text, $url)) {
+            // make the urls hyper links
+            $newText .= preg_replace($regExUrl, "<a target=\"_blank\" href=" . $url[0] . ">".$url[0]."</a> ", $text);
+            if ($count == 0) {
+                //$newText .= self::getHtmlByLink($url[0]);
+            }
+            $count++;
+        } else {
+            $newText .= $text;
+        }
+
+        return $newText;
+    }
+
+    /**
+     * html with data OpenGrap
+     * @param $link url
+     * @return string data html
+     */
+    public function getHtmlByLink($link)
+    {
+        $graph = OpenGraph::fetch($link);
+        $title =  !empty($graph->site_name) ? $graph->site_name .' : '.$graph->title : $graph->title;
+        $html = '<div style="border:1px solid gray">';
+        $html .= '<h3><a target="_blank" href="'.$link.'">' . $title . '</h3>';
+        $html .= empty($graph->image) ? '' : '<img alt="" src="'.$graph->image.'" height="160" >';
+        $html .= empty($graph->description) ? '' : '<div>'.$graph->description.'</div>';
+        $html .= "</div>";
+
+        return $html;
+    }
+
 
     /**
      * Get name img by sizes

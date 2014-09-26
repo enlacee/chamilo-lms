@@ -10,6 +10,8 @@
 $language_file = array('userInfo', 'index');
 $cidReset = true;
 require_once '../inc/global.inc.php';
+// Include OpenGraph NOT AVAILABLE 
+// require_once api_get_path(LIBRARY_PATH) . 'opengraph/OpenGraph.php';
 
 if (api_get_setting('allow_social_tool') !='true') {
     $url = api_get_path(WEB_PATH).'whoisonline.php?id='.intval($_GET['u']);
@@ -36,7 +38,7 @@ if (!empty($_POST['social_wall_new_msg_main'])) {
     header('Location: ' . $url);
     exit;
 
-} else if (!empty($_POST['social_wall_new_msg'])  && !empty($_POST['messageId'])) {echo "22"; exit;
+} else if (!empty($_POST['social_wall_new_msg'])  && !empty($_POST['messageId'])) {
     $messageId = intval($_POST['messageId']);
     $res = SocialManager::sendWallMessage(api_get_user_id(), $friendId, $_POST['social_wall_new_msg'], $messageId , MESSAGE_STATUS_WALL);
     $url = api_get_path(WEB_CODE_PATH) . 'social/profile.php';
