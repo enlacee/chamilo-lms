@@ -1078,6 +1078,7 @@ class SocialManager extends UserManager
      */
     public static function sendWallMessageAttachmentFile($userId, $fileAttach, $messageId, $fileComment = '')
     {
+        $flag = false;
         $tbl_message_attach = Database::get_main_table(TABLE_MESSAGE_ATTACHMENT);
 
         // create directory
@@ -1090,34 +1091,35 @@ class SocialManager extends UserManager
         $extension = strtolower(substr(strrchr($safeFileName, '.'), 1));
         $allowedTypes = array('jpg', 'jpeg', 'png', 'gif');
         if (!in_array($extension, $allowedTypes)) {
-            echo "exit extension no correct.."; exit;
-        }
+            $flag = false;
+        } else {
+            $newFileName = uniqid('') . '.' . $extension;
+            if (!file_exists($pathMessageAttach)) {
+                @mkdir($pathMessageAttach, api_get_permissions_for_new_directories(), true);
+            }
 
-        $newFileName = uniqid('') . '.' . $extension;
-        if (!file_exists($pathMessageAttach)) {
-            @mkdir($pathMessageAttach, api_get_permissions_for_new_directories(), true);
-        }
+            $newPath = $pathMessageAttach . $newFileName;
+            if (is_uploaded_file($fileAttach['tmp_name'])) {
+                @copy($fileAttach['tmp_name'], $newPath);
+            }
 
-        $newPath = $pathMessageAttach . $newFileName;
-        if (is_uploaded_file($fileAttach['tmp_name'])) {
-            @copy($fileAttach['tmp_name'], $newPath);
-        }
+            $small = self::resize_picture($newPath, IMAGE_WALL_SMALL_SIZE);
+            $medium = self::resize_picture($newPath, IMAGE_WALL_MEDIUM_SIZE);
 
-        $small = self::resize_picture($newPath, IMAGE_WALL_SMALL_SIZE);
-        $medium = self::resize_picture($newPath, IMAGE_WALL_MEDIUM_SIZE);
+            $big = new Image($newPath);
+            $ok = $small && $small->send_image($pathMessageAttach . IMAGE_WALL_SMALL . '_' . $newFileName) &&
+                $medium && $medium->send_image($pathMessageAttach . IMAGE_WALL_MEDIUM .'_' . $newFileName) &&
+                $big && $big->send_image($pathMessageAttach . IMAGE_WALL_BIG . '_' . $newFileName);
 
-        $big = new Image($newPath);
-        $ok = $small && $small->send_image($pathMessageAttach . IMAGE_WALL_SMALL . '_' . $newFileName) &&
-            $medium && $medium->send_image($pathMessageAttach . IMAGE_WALL_MEDIUM .'_' . $newFileName) &&
-            $big && $big->send_image($pathMessageAttach . IMAGE_WALL_BIG . '_' . $newFileName);
-
-        // Insert
-        $newFileName = $social.$newFileName;
-        $sql = "INSERT INTO $tbl_message_attach(filename, comment, path, message_id, size)
+            // Insert
+            $newFileName = $social.$newFileName;
+            $sql = "INSERT INTO $tbl_message_attach(filename, comment, path, message_id, size)
 				  VALUES ( '$safeFileName', '$safeFileComment', '$newFileName' , '$messageId', '".$fileAttach['size']."' )";
-        Database::query($sql);
+            Database::query($sql);
+            $flag = true;
+        }
 
-        return true;
+        return $flag;
     }
 
     /**
