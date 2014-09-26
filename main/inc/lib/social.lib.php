@@ -1045,6 +1045,7 @@ class SocialManager extends UserManager
         $userId = intval($userId);
         $friendId = intval($friendId);
         $messageId = intval($messageId);
+        $return = false;
 
         //Just in case we replace the and \n and \n\r while saving in the DB
         $messageContent = str_replace(array("\n", "\n\r"), '<br />', $messageContent);
@@ -1057,10 +1058,64 @@ class SocialManager extends UserManager
             ) VALUES(
             '.$userId.','.$friendId.','.$messageStatus.',"'.$now.'","","'.$cleanMessageContent.'", "'.$messageId.'" ) ';
         Database::query($sql);
-
+        $return = Database::insert_id();
+/*
         $senderInfo = api_get_user_info($userId);
         $notification = new Notification();
         $notification->save_notification(Notification::NOTIFICATION_TYPE_WALL_MESSAGE, array($friendId), '', $messageContent, $senderInfo);
+*/
+        return $return;
+    }
+
+    /**
+     * Send File attachment (jpg,png)
+     * @author Anibal Copitan
+     * @param int $userId id user
+     * @param array $fileAttach
+     * @param int $messageId id message (relation with main message)
+     * @param string $fileComment description attachment file
+     * @return bool
+     */
+    public static function sendWallMessageAttachmentFile($userId, $fileAttach, $messageId, $fileComment = '')
+    {
+        $tbl_message_attach = Database::get_main_table(TABLE_MESSAGE_ATTACHMENT);
+
+        // create directory
+        $pathUserInfo = UserManager::get_user_picture_path_by_id($userId, 'system', true);
+        $social = '/social/';
+        $pathMessageAttach = $pathUserInfo['dir'] . 'message_attachments'. $social;
+        $safeFileComment = Database::escape_string($fileComment);
+        $safeFileName = Database::escape_string($fileAttach['name']);
+
+        $extension = strtolower(substr(strrchr($safeFileName, '.'), 1));
+        $allowedTypes = array('jpg', 'jpeg', 'png', 'gif');
+        if (!in_array($extension, $allowedTypes)) {
+            echo "exit extension no correct.."; exit;
+        }
+
+        $newFileName = uniqid('') . '.' . $extension;
+        if (!file_exists($pathMessageAttach)) {
+            @mkdir($pathMessageAttach, api_get_permissions_for_new_directories(), true);
+        }
+
+        $newPath = $pathMessageAttach . $newFileName;
+        if (is_uploaded_file($fileAttach['tmp_name'])) {
+            @copy($fileAttach['tmp_name'], $newPath);
+        }
+
+        $small = self::resize_picture($newPath, IMAGE_WALL_SMALL_SIZE);
+        $medium = self::resize_picture($newPath, IMAGE_WALL_MEDIUM_SIZE);
+
+        $big = new Image($newPath);
+        $ok = $small && $small->send_image($pathMessageAttach . IMAGE_WALL_SMALL . '_' . $newFileName) &&
+            $medium && $medium->send_image($pathMessageAttach . IMAGE_WALL_MEDIUM .'_' . $newFileName) &&
+            $big && $big->send_image($pathMessageAttach . IMAGE_WALL_BIG . '_' . $newFileName);
+
+        // Insert
+        $newFileName = $social.$newFileName;
+        $sql = "INSERT INTO $tbl_message_attach(filename, comment, path, message_id, size)
+				  VALUES ( '$safeFileName', '$safeFileComment', '$newFileName' , '$messageId', '".$fileAttach['size']."' )";
+        Database::query($sql);
 
         return true;
     }
@@ -1089,7 +1144,10 @@ class SocialManager extends UserManager
         //}
         $limit = intval($limit);
         $messages = array();
-        $sql = "SELECT id, user_sender_id,user_receiver_id, send_date, content, parent_id FROM $tblMessage
+        $sql = "SELECT id, user_sender_id,user_receiver_id, send_date, content, parent_id,
+          (SELECT ma.path from message_attachment ma WHERE  ma.message_id = tm.id ) as path,
+          (SELECT ma.filename from message_attachment ma WHERE  ma.message_id = tm.id ) as filename
+            FROM $tblMessage tm
             WHERE user_receiver_id = $userId
                 AND send_date > '$start' ";
         $sql .= (empty($messageStatus) || is_null($messageStatus)) ? '' : " AND msg_status = '$messageStatus' ";
@@ -1235,6 +1293,16 @@ class SocialManager extends UserManager
             $htmlReciber = ' > <a href="'.$urlReciber.'">' . $nameCompleteReciver . '</a> ';
         }
 
+        $wallImage = '';
+        if (!empty($message['path'])) {
+            $pathUserInfo = UserManager::get_user_picture_path_by_id($authorId, 'web', true);
+            $pathImg = $pathUserInfo['dir'] . 'message_attachments';
+            $imageBig = $pathImg .self::_geImage($message['path'], IMAGE_WALL_BIG);
+            $imageSmall =  $pathImg. self::_geImage($message['path'], IMAGE_WALL_SMALL);
+            $wallImage = '<hr><a class="thumbnail thickbox" href="'.$imageBig.'"><img src="'.$imageSmall.'"> </a>';
+        }
+
+
         $htmlDelete = '';
         if ($visibility) {
             $htmlDelete .= '<a href="'.api_get_path(WEB_PATH).'main/social/profile.php?messageId=' . $message['id'].'">'.get_lang('SocialMessageDelete').'</a>';
@@ -1248,6 +1316,7 @@ class SocialManager extends UserManager
         $html .= '<h4 class="media-heading"> <a href="'.$urlAuthor.'">' . $nameCompleteAuthor . '</a> ' . $htmlReciber;
         $html .= '<small><span class="time" title="' . $date . '">' . $date . '</span></small></h4>';
         $html .= $htmlDelete;
+        $html .= $wallImage;
         $html .= '</div>';
         $html .= '<span class="content">'.Security::remove_XSS($message['content']).'</span>';
         $html .= '</div>'; // end mediaPost
@@ -1255,6 +1324,32 @@ class SocialManager extends UserManager
         return $html;
     }
 
+    /**
+     * Get name img by sizes
+     * @param string$path
+     * @return string
+     */
+    private static function _geImage($path, $size = '')
+    {
+        $name = '';
+        $array = preg_split('#\/#', $path);
+        if (isset($array[2]) && !empty($array[2])) {
+
+            if ($size == IMAGE_WALL_SMALL) {
+                $name = IMAGE_WALL_SMALL. '_' . $array[2];
+            }else if($size == IMAGE_WALL_MEDIUM){
+                $name = IMAGE_WALL_MEDIUM. '_' . $array[2];
+            }else if($size == IMAGE_WALL_BIG){
+                $name = IMAGE_WALL_BIG. '_' . $array[2];
+            }else {
+                $name = IMAGE_WALL_SMALL. '_' . $array[2];
+            }
+            $lessImage = str_replace($array[2], '', $path);
+            $name = $lessImage . $name;
+        }
+
+        return $name;
+    }
     /**
     * Delete messages delete logic
     * @param int $id indice message to delete.

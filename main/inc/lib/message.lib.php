@@ -28,6 +28,13 @@ define('MESSAGE_STATUS_INVITATION_DENIED', '7');
 define('MESSAGE_STATUS_WALL', '8');
 define('MESSAGE_STATUS_WALL_DELETE', '9');
 define('MESSAGE_STATUS_WALL_POST', '10');
+// Images
+define('IMAGE_WALL_SMALL_SIZE', 200);
+define('IMAGE_WALL_MEDIUM_SIZE', 500);
+define('IMAGE_WALL_BIG_SIZE', 2000);
+define('IMAGE_WALL_SMALL', 'small');
+define('IMAGE_WALL_MEDIUM', 'medium');
+define('IMAGE_WALL_BIG', 'big');
 
 /**
  * Class

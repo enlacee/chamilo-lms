@@ -24,16 +24,19 @@ $show_full_profile = true;
 //social tab
 $this_section = SECTION_SOCIAL;
 
-
 if (!empty($_POST['social_wall_new_msg_main'])) {
     $messageId = 0;
-    SocialManager::sendWallMessage(api_get_user_id(), $friendId, $_POST['social_wall_new_msg_main'], $messageId, MESSAGE_STATUS_WALL_POST);
+    $idMessage = SocialManager::sendWallMessage(api_get_user_id(), $friendId, $_POST['social_wall_new_msg_main'], $messageId, MESSAGE_STATUS_WALL_POST);
+    if (!empty($_FILES['picture']['tmp_name']) && $idMessage > 0) {
+        $error = SocialManager::sendWallMessageAttachmentFile(api_get_user_id(), $_FILES['picture'], $idMessage, $fileComment = '');
+    }
+
     $url = api_get_path(WEB_CODE_PATH) . 'social/profile.php';
     $url .= empty($_SERVER['QUERY_STRING']) ? '' : '?' . $_SERVER['QUERY_STRING'];
     header('Location: ' . $url);
     exit;
 
-} else if (!empty($_POST['social_wall_new_msg'])  && !empty($_POST['messageId'])) {
+} else if (!empty($_POST['social_wall_new_msg'])  && !empty($_POST['messageId'])) {echo "22"; exit;
     $messageId = intval($_POST['messageId']);
     $res = SocialManager::sendWallMessage(api_get_user_id(), $friendId, $_POST['social_wall_new_msg'], $messageId , MESSAGE_STATUS_WALL);
     $url = api_get_path(WEB_CODE_PATH) . 'social/profile.php';
@@ -784,10 +787,11 @@ function _wallSocialAddPost()
     $html = '';
     $html .= '<h3>' . get_lang('SocialWall') . '</h3>';
     $html .=
-        '<form name="social_wall_main" method="POST">
+        '<form name="social_wall_main" method="POST" enctype="multipart/form-data">
             <label for="social_wall_new_msg_main" class="hide">' . get_lang('SocialWallWhatAreYouThinkingAbout') . '</label>
         <textarea name="social_wall_new_msg_main" rows="2" cols="80" style="width: 98%" placeholder="'.get_lang('SocialWallWhatAreYouThinkingAbout').'"></textarea>
         <br />
+        <input class="" name="picture" type="file">
         <input type="submit" name="social_wall_new_msg_main_submit" value="'.get_lang('Post').'" class="float right btn btn-primary" />
     </form>';
 
