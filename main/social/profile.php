@@ -373,6 +373,9 @@ if ($show_full_profile) {
     $personal_info .=  '</dl>';
 }
 
+$wallSocialAddPost = '';
+$social_right_content = '';
+
 $wallSocialAddPost .= _wallSocialAddPost();
 $social_right_content .= SocialManager::social_wrapper_div($wallSocialAddPost, 5);
 

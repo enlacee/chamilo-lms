@@ -640,7 +640,7 @@ class SocialManager extends UserManager
         }
 
         if (!in_array($show, array('shared_profile', 'groups', 'group_edit', 'member_list', 'waiting_list', 'invite_friends'))) {
-
+            $active = null;
             $html .= '<div class="well sidebar-nav"><ul class="nav nav-list">';
             $active = $show == 'home' ? 'active' : null;
             $html .= '<li class="home-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/home.php">'.get_lang('Home').'</a></li>';
@@ -680,6 +680,7 @@ class SocialManager extends UserManager
 
             // My own profile
             if ($show_full_profile && $user_id == intval(api_get_user_id())) {
+                $active = null;
                 $html .= '<li class="home-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/home.php">'.get_lang('Home').'</a></li>
                           <li class="messages-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/messages/inbox.php?f=social">'.get_lang('Messages').$count_unread_message.'</a></li>';
                 $active = $show == 'invitations' ? 'active' : null;
@@ -1330,7 +1331,7 @@ class SocialManager extends UserManager
      * Get schedule html (with data openGrap)
      * @param $text content text
      */
-    public function readContentWithOpenGraph($text)
+    public static function readContentWithOpenGraph($text)
     {
         // search link in first line
         $regExUrl = "/(http|https)\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(\/\S*)?/";
