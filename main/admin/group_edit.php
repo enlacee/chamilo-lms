@@ -133,9 +133,8 @@ $image = $image_path['file'];
 $image_file = ($image != '' ? $image_dir.$image : api_get_path(WEB_CODE_PATH).'img/unknown_group.jpg');
 $image_size = api_getimagesize($image_file);
 
-$img_attributes = 'src="'.$image_file.'?rand='.time().'" '
-	.'alt="'.api_get_person_name($user_data['firstname'], $user_data['lastname']).'" '
-	.'style="float:'.($text_dir == 'rtl' ? 'left' : 'right').'; padding:5px;" ';
+$img_attributes = 'src="'.$image_file.'?rand='.time().'" '	
+. 'style="float:'.($text_dir == 'rtl' ? 'left' : 'right').'; padding:5px;" ';
 
 if ($image_size['width'] > 300) { //limit display width to 300px
 	$img_attributes .= 'width="300" ';
