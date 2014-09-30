@@ -324,6 +324,8 @@ if ($group_id != 0 ) {
     $results = GroupPortalManager::get_groups_by_user(api_get_user_id(), 0);
     $grid_my_groups = array();
     $my_group_list = array();
+    $item_2 = '';
+    $item_3 = '';
     if (is_array($results) && count($results) > 0) {
         foreach ($results as $result) {
             $id = $result['id'];
@@ -352,8 +354,6 @@ if ($group_id != 0 ) {
             $members = Display::span($count_users_group, array('class'=>'box_description_group_member'));
             $item_1  = Display::div(Display::tag('h3', $url_open.$name.$url_close).$members, array('class'=>'box_description_group_title'));
 
-            $item_2 = '';
-            $item_3 = '';
             if ($result['description'] != '') {
                 $item_3 = '<div class="box_description_group_content" >'.cut($result['description'],100,true).'</div>';
             } else {
