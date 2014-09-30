@@ -68,6 +68,7 @@ $allowed_picture_types = array ('jpg', 'jpeg', 'png', 'gif');
 $form->addRule('picture', get_lang('OnlyImagesAllowed').' ('.implode(',', $allowed_picture_types).')', 'filetype', $allowed_picture_types);
 
 //Group Parentship
+$group_id = null;
 $groups = array();
 $groups[0] = get_lang('NoParentship');
 $groups = $groups + GroupPortalManager::get_groups_list($group_id);
