@@ -334,6 +334,10 @@ if (is_array($personal_course_list)) {
 
 $social_left_content = SocialManager::show_social_menu('shared_profile', null, $user_id, $show_full_profile);
 
+// My friends
+$friend_html = _listMyFriends($user_id, $link_shared ,$show_full_profile);
+$social_left_content.= '<div class="well sidebar-nav">' .$friend_html . '</div>';
+
 $personal_info = null;
 if (!empty($user_info['firstname']) || !empty($user_info['lastname'])) {
     $personal_info .= '<div DATA="DATA"><h3>'.api_get_person_name($user_info['firstname'], $user_info['lastname']).'</h3></div>';
@@ -714,19 +718,10 @@ $social_right_content .= MessageManager::generate_invitation_form('send_invitati
 
 
 $tpl = new Template(get_lang('Social'));
-
-// Perfil
-$friend_html = _listMyFriends($user_id, $link_shared ,$show_full_profile);
-
-$tpl->assign('socialPerfilPic', $social_left_content[0]);
-$tpl->assign('socialPerfilMenu', $social_left_content[1]);
-$tpl->assign('socialPerfilAdditional', $social_left_content[2]);
-$tpl->assign('socialPerfilFriends', $friend_html);
-
-//$tpl->assign('social_left_content', '-');
+$tpl->assign('social_left_content', $social_left_content);
 $tpl->assign('social_right_content', $social_right_content);
 
-$social_layout = $tpl->get_template('layout/social_layout2.tpl');
+$social_layout = $tpl->get_template('layout/social_layout.tpl');
 $tpl->display($social_layout);
 
 /*

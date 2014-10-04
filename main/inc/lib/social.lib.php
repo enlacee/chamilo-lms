@@ -566,7 +566,8 @@ class SocialManager extends UserManager
     }
 
     /**
-     * Shows the right menu of the Social Network tool
+     * Return html in one array with indice numeric for orden in twig.
+     * html right menu of the Social Network tool
      *
      * @param string highlight link possible values: group_add, home, messages, messages_inbox, messages_compose ,messages_outbox ,invitations, shared_profile, friends, groups search
      * @param int group id
@@ -576,6 +577,12 @@ class SocialManager extends UserManager
      */
     public static function show_social_menu($show = '', $group_id = 0, $user_id = 0, $show_full_profile = false, $show_delete_account_button = false)
     {
+        
+        $seccHtml = array();
+        $seccHtml[0] = ''; // socialPerfilPic
+        $seccHtml[1] = ''; // socialPerfilMenu
+        $seccHtml[2] = ''; // socialPerfilAdditional
+                
         if (empty($user_id)) {
             $user_id = api_get_user_id();
         }
@@ -602,22 +609,18 @@ class SocialManager extends UserManager
         $total_invitations = $number_of_new_messages_of_friend + $group_pending_invitations;
         $total_invitations = (!empty($total_invitations) ? Display::badge($total_invitations) : '');
 
-        $html = '<div class="social-menu">';
+
         if (in_array($show, $show_groups) && !empty($group_id)) {
             //--- Group image
             $group_info = GroupPortalManager::get_group_data($group_id);
             $big = GroupPortalManager::get_picture_group($group_id, $group_info['picture_uri'], 160, GROUP_IMAGE_SIZE_BIG);
 
-            $html .= '<div class="social-content-image">';
-            $html .= '<div class="well social-background-content">';
-            $html .= Display::url('<img src='.$big['file'].' class="social-groups-image" /> </a><br /><br />', api_get_path(WEB_PATH).'main/social/groups.php?id='.$group_id);
+            $seccHtml[0] .= Display::url('<img src="'.$big['file'].'" class="social-groups-image" /> </a><br /><br />', api_get_path(WEB_PATH).'main/social/groups.php?id='.$group_id);
             if (GroupPortalManager::is_group_admin($group_id, api_get_user_id())) {
-                $html .= '<div id="edit_image" class="hidden_message" style="display:none">
-                            <a href="'.api_get_path(WEB_PATH).'main/social/group_edit.php?id='.$group_id.'">'.
-                    get_lang('EditGroup').'</a></div>';
+                $seccHtml[0] .= '<div id="edit_image" class="hidden_message" style="display:none"> <a href="'.api_get_path(WEB_PATH).'main/social/group_edit.php?id='.$group_id.'">'
+                        . get_lang('EditGroup').'</a></div>';
             }
-            $html .= '</div>';
-            $html .= '</div>';
+
         } else {
             $img_array = UserManager::get_user_picture_path_by_id($user_id, 'web', true, true);
             $big_image = UserManager::get_picture_user($user_id, $img_array['file'], '', USER_IMAGE_SIZE_BIG);
@@ -625,91 +628,89 @@ class SocialManager extends UserManager
             $normal_image = $img_array['dir'].$img_array['file'].'?'.uniqid();
 
             //--- User image
-
-            $html .= '<div class="well social-background-content">';
             if ($img_array['file'] != 'unknown.jpg') {
-                $html .= '<a class="thumbnail thickbox" href="'.$big_image.'"><img src='.$normal_image.' /> </a>';
+                $seccHtml[0] .= '<a class="thumbnail thickbox" href="'.$big_image.'"><img src='.$normal_image.' /> </a>';
             } else {
-                $html .= '<img src='.$normal_image.' width="110px" />';
+                $seccHtml[0] .= '<img src='.$normal_image.' width="110px" />';
             }
             if (api_get_user_id() == $user_id) {
-                $html .= '<div id="edit_image" class="hidden_message" style="display:none">';
-                $html .= '<a href="'.api_get_path(WEB_PATH).'main/auth/profile.php">'.get_lang('EditProfile').'</a></div>';
+                $seccHtml[0] .= '<div id="edit_image" class="hidden_message" style="display:none">';
+                $seccHtml[0] .= '<a href="'.api_get_path(WEB_PATH).'main/auth/profile.php">'.get_lang('EditProfile').'</a></div>';
             }
-            $html .= '</div>';
         }
-
+        
+        
         if (!in_array($show, array('shared_profile', 'groups', 'group_edit', 'member_list', 'waiting_list', 'invite_friends'))) {
             $active = null;
-            $html .= '<div class="well sidebar-nav"><ul class="nav nav-list">';
+            $seccHtml[1] .= '<div class="well sidebar-nav"><ul class="nav nav-list">';
             $active = $show == 'home' ? 'active' : null;
-            $html .= '<li class="home-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/home.php">'.get_lang('Home').'</a></li>';
+            $seccHtml[1] .= '<li class="home-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/home.php">'.get_lang('Home').'</a></li>';
             $active = $show == 'messages' ? 'active' : null;
-            $html .= '<li class="messages-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/messages/inbox.php?f=social">'.get_lang('Messages').$count_unread_message.'</a></li>';
+            $seccHtml[1] .= '<li class="messages-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/messages/inbox.php?f=social">'.get_lang('Messages').$count_unread_message.'</a></li>';
 
             //Invitations
             $active = $show == 'invitations' ? 'active' : null;
-            $html .= '<li class="invitations-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/invitations.php">'.get_lang('Invitations').$total_invitations.'</a></li>';
+            $seccHtml[1] .= '<li class="invitations-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/invitations.php">'.get_lang('Invitations').$total_invitations.'</a></li>';
 
             //Shared profile and groups
             $active = $show == 'shared_profile' ? 'active' : null;
-            $html .= '<li class="shared-profile-icon'.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/profile.php">'.get_lang('ViewMySharedProfile').'</a></li>';
+            $seccHtml[1] .= '<li class="shared-profile-icon'.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/profile.php">'.get_lang('ViewMySharedProfile').'</a></li>';
             $active = $show == 'friends' ? 'active' : null;
-            $html .= '<li class="friends-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/friends.php">'.get_lang('Friends').'</a></li>';
+            $seccHtml[1] .= '<li class="friends-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/friends.php">'.get_lang('Friends').'</a></li>';
             $active = $show == 'browse_groups' ? 'active' : null;
-            $html .= '<li class="browse-groups-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/groups.php">'.get_lang('SocialGroups').'</a></li>';
+            $seccHtml[1] .= '<li class="browse-groups-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/groups.php">'.get_lang('SocialGroups').'</a></li>';
 
             //Search users
             $active = $show == 'search' ? 'active' : null;
-            $html .= '<li class="search-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/search.php">'.get_lang('Search').'</a></li>';
+            $seccHtml[1] .= '<li class="search-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/search.php">'.get_lang('Search').'</a></li>';
 
             //My files
             $active = $show == 'myfiles' ? 'active' : null;
-            $html .= '<li class="myfiles-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/myfiles.php">'.get_lang('MyFiles').'</span></a></li>';
-            $html .='</ul>
-                  </div>';
+            $seccHtml[1] .= '<li class="myfiles-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/myfiles.php">'.get_lang('MyFiles').'</span></a></li>';
+            $seccHtml[1] .='</ul> </div>';
         }
 
+        // HTML PARA GRUPO
         if (in_array($show, $show_groups) && !empty($group_id)) {
-            $html .= GroupPortalManager::show_group_column_information($group_id, api_get_user_id(), $show);
+            $seccHtml[1] .= GroupPortalManager::show_group_column_information($group_id, api_get_user_id(), $show);
         }
 
-        if ($show == 'shared_profile') {
-            $html .= '<div class="well sidebar-nav">
+        if ($show == 'shared_profile') { 
+            $seccHtml[1] .= '<div class="well sidebar-nav">
                     <ul class="nav nav-list">';
 
             // My own profile
             if ($show_full_profile && $user_id == intval(api_get_user_id())) {
                 $active = null;
-                $html .= '<li class="home-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/home.php">'.get_lang('Home').'</a></li>
+                $seccHtml[1] .= '<li class="home-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/home.php">'.get_lang('Home').'</a></li>
                           <li class="messages-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/messages/inbox.php?f=social">'.get_lang('Messages').$count_unread_message.'</a></li>';
                 $active = $show == 'invitations' ? 'active' : null;
-                $html .= '<li class="invitations-icon'.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/invitations.php">'.get_lang('Invitations').$total_invitations.'</a></li>';
+                $seccHtml[1] .= '<li class="invitations-icon'.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/invitations.php">'.get_lang('Invitations').$total_invitations.'</a></li>';
 
-                $html .= '<li class="shared-profile-icon active"><a href="'.api_get_path(WEB_PATH).'main/social/profile.php">'.get_lang('ViewMySharedProfile').'</a></li>
+                $seccHtml[1] .= '<li class="shared-profile-icon active"><a href="'.api_get_path(WEB_PATH).'main/social/profile.php">'.get_lang('ViewMySharedProfile').'</a></li>
                           <li class="friends-icon"><a href="'.api_get_path(WEB_PATH).'main/social/friends.php">'.get_lang('Friends').'</a></li>
                           <li class="browse-groups-icon"><a href="'.api_get_path(WEB_PATH).'main/social/groups.php">'.get_lang('SocialGroups').'</a></li>';
                 $active = $show == 'search' ? 'active' : null;
-                $html .= '<li class="search-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/search.php">'.get_lang('Search').'</a></li>';
+                $seccHtml[1] .= '<li class="search-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/search.php">'.get_lang('Search').'</a></li>';
                 $active = $show == 'myfiles' ? 'active' : null;
-                $html .= '<li class="myfiles-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/myfiles.php">'.get_lang('MyFiles').'</a></li>';
+                $seccHtml[1] .= '<li class="myfiles-icon '.$active.'"><a href="'.api_get_path(WEB_PATH).'main/social/myfiles.php">'.get_lang('MyFiles').'</a></li>';
             }
 
             // My friend profile
 
             if ($user_id != api_get_user_id()) {
-                $html .= '<li><a href="javascript:void(0);" onclick="javascript:send_message_to_user(\''.$user_id.'\');" title="'.get_lang('SendMessage').'">';
-                $html .= Display::return_icon('compose_message.png', get_lang('SendMessage')).'&nbsp;&nbsp;'.get_lang('SendMessage').'</a></li>';
+                $seccHtml[1] .= '<li><a href="javascript:void(0);" onclick="javascript:send_message_to_user(\''.$user_id.'\');" title="'.get_lang('SendMessage').'">';
+                $seccHtml[1] .= Display::return_icon('compose_message.png', get_lang('SendMessage')).'&nbsp;&nbsp;'.get_lang('SendMessage').'</a></li>';
             }
 
             //check if I already sent an invitation message
             $invitation_sent_list = SocialManager::get_list_invitation_sent_by_user_id(api_get_user_id());
 
             if (isset($invitation_sent_list[$user_id]) && is_array($invitation_sent_list[$user_id]) && count($invitation_sent_list[$user_id]) > 0) {
-                $html .= '<li><a href="'.api_get_path(WEB_PATH).'main/social/invitations.php">'.Display::return_icon('invitation.png', get_lang('YouAlreadySentAnInvitation')).'&nbsp;&nbsp;'.get_lang('YouAlreadySentAnInvitation').'</a></li>';
+                $seccHtml[1] .= '<li><a href="'.api_get_path(WEB_PATH).'main/social/invitations.php">'.Display::return_icon('invitation.png', get_lang('YouAlreadySentAnInvitation')).'&nbsp;&nbsp;'.get_lang('YouAlreadySentAnInvitation').'</a></li>';
             } else {
                 if (!$show_full_profile) {
-                    $html .= '<li><a  href="javascript:void(0);" onclick="javascript:send_invitation_to_user(\''.$user_id.'\');" title="'.get_lang('SendInvitation').'">'.Display :: return_icon('invitation.png', get_lang('SocialInvitationToFriends')).'&nbsp;'.get_lang('SendInvitation').'</a></li>';
+                    $seccHtml[1] .= '<li><a  href="javascript:void(0);" onclick="javascript:send_invitation_to_user(\''.$user_id.'\');" title="'.get_lang('SendInvitation').'">'.Display :: return_icon('invitation.png', get_lang('SocialInvitationToFriends')).'&nbsp;'.get_lang('SendInvitation').'</a></li>';
                 }
             }
 
@@ -724,7 +725,7 @@ class SocialManager extends UserManager
                         if ($current_user_info['user_is_online_in_chat'] == 1) {
                             $options = array('onclick' => "javascript:chatWith('".$user_id."', '".Security::remove_XSS($user_name)."', '".$user_info['user_is_online_in_chat']."')");
                             $chat_icon = $user_info['user_is_online_in_chat'] ? Display::return_icon('online.png', get_lang('Online')) : Display::return_icon('offline.png', get_lang('Offline'));
-                            $html .= Display::tag('li', Display::url($chat_icon.'&nbsp;&nbsp;'.get_lang('Chat'), 'javascript:void(0);', $options));
+                            $seccHtml[1] .= Display::tag('li', Display::url($chat_icon.'&nbsp;&nbsp;'.get_lang('Chat'), 'javascript:void(0);', $options));
                         }
                     }
                 } else {
@@ -733,12 +734,12 @@ class SocialManager extends UserManager
                             $message = Security::remove_XSS(sprintf(get_lang("YouHaveToAddXAsAFriendFirst"), $user_name));
                             $options = array('onclick' => "javascript:chatNotYetWith('".$message."')");
                             $chat_icon = $user_info['user_is_online_in_chat'] ? Display::return_icon('online.png', get_lang('Online')) : Display::return_icon('offline.png', get_lang('Offline'));
-                            $html .= Display::tag('li', Display::url($chat_icon.'&nbsp;&nbsp;'.get_lang('Chat'), 'javascript:void(0);', $options));
+                            $seccHtml[1] .= Display::tag('li', Display::url($chat_icon.'&nbsp;&nbsp;'.get_lang('Chat'), 'javascript:void(0);', $options));
                         }
                     }
                 }
             }
-            $html .= '</ul></div>';
+            $seccHtml[1] .= '</ul></div>';
 
             if ($show_full_profile && $user_id == intval(api_get_user_id())) {
                 $personal_course_list = UserManager::get_personal_session_course_list($user_id);
@@ -772,25 +773,27 @@ class SocialManager extends UserManager
                     }
                 }
                 if (!empty($announcements)) {
-                    $html .= '<div class="social_menu_items">';
-                    $html .= '<ul>';
+                    $seccHtml[1] .= '<div class="social_menu_items">';
+                    $seccHtml[1] .= '<ul>';
                     foreach ($announcements as $announcement) {
-                        $html .= $announcement;
+                        $seccHtml[1] .= $announcement;
                     }
-                    $html .= '</ul>';
-                    $html .= '</div>';
+                    $seccHtml[1] .= '</ul>';
+                    $seccHtml[1] .= '</div>';
                 }
             }
         }
 
         if ($show_delete_account_button) {
-            $html .= '<div class="sidebar-nav"><ul><li>';
+            $seccHtml[2] .= '<div class="sidebar-nav"><ul><li>';
             $url = api_get_path(WEB_CODE_PATH).'auth/unsubscribe_account.php';
-            $html .= Display::url(Display::return_icon('delete.png', get_lang('Unsubscribe'), array(), ICON_SIZE_TINY).get_lang('Unsubscribe'), $url);
-            $html .= '</li></ul></div>';
+            $seccHtml[2] .= Display::url(Display::return_icon('delete.png', get_lang('Unsubscribe'), array(), ICON_SIZE_TINY).get_lang('Unsubscribe'), $url);
+            $seccHtml[2] .= '</li></ul></div>';
         }
+        
         $html .= '</div>';
-        return $html;
+        
+        return $seccHtml;
     }
 
     /**
